@@ -1,10 +1,12 @@
+from pathlib import Path
 
 import cv2
 from ultralytics import YOLO
 
-# Dedicated YOLO face detector and YOLO pose model
-face_model = YOLO("yolov8n-face.pt")
-pose_model = YOLO("yolov8n-pose.pt")
+# Load model weights relative to this script, regardless of the launch folder.
+SCRIPT_DIR = Path(__file__).resolve().parent
+face_model = YOLO(str(SCRIPT_DIR / "yolov8n-face.pt"))
+pose_model = YOLO(str(SCRIPT_DIR / "yolov8n-pose.pt"))
 
 cap = cv2.VideoCapture(0)
 
@@ -21,12 +23,12 @@ try:
             print("Failed to read video frame")
             break
 
-        # Detect faces using YOLO Face
+        # Detect faces and estimate pose landmarks for the current frame.
         face_results = face_model.predict(
             frame, imgsz=640, conf=0.4, verbose=False
         )
 
-        # Detect eye landmarks using YOLO Pose
+        # COCO pose keypoints include left- and right-eye landmarks.
         pose_results = pose_model.predict(
             frame, imgsz=640, conf=0.5, verbose=False
         )
@@ -38,6 +40,8 @@ try:
                 continue
 
             for box in result.boxes.xyxy.cpu().numpy():
+                # Convert model coordinates to integers and clamp them to the
+                # frame so later crops and drawings stay within its bounds.
                 x1, y1, x2, y2 = map(int, box[:4])
 
                 x1 = max(0, x1)
@@ -50,7 +54,7 @@ try:
 
                 faces.append((x1, y1, x2, y2))
 
-                # Draw only the actual YOLO face detection
+                # Save each valid face for filtering eye points, then draw it.
                 cv2.rectangle(
                     frame, (x1, y1), (x2, y2), (0, 255, 255), 2
                 )
@@ -73,17 +77,19 @@ try:
                 confidences = None
 
             for person_idx, points in enumerate(keypoints):
+                # Pose landmark indices 1 and 2 represent the two eyes.
                 for idx, color, label in [
                     (1, (255, 0, 0), "Left Eye"),
                     (2, (0, 0, 255), "Right Eye")
                 ]:
                     if confidences is not None:
+                        # Discard uncertain eye predictions.
                         if confidences[person_idx][idx] < 0.4:
                             continue
 
                     ex, ey = map(int, points[idx])
 
-                    # Keep eye landmarks inside a YOLO-detected face
+                    # Ignore eye points that do not fall inside a face box.
                     face = next(
                         (
                             (x1, y1, x2, y2)
@@ -99,7 +105,8 @@ try:
                     x1, y1, x2, y2 = face
                     face_width = x2 - x1
 
-                    # Scale the eye box to the detected face
+                    # Pose gives eye points, not boxes; size a display box in
+                    # proportion to the detected face.
                     box_w = max(8, int(face_width * 0.10))
                     box_h = max(6, int(face_width * 0.06))
 

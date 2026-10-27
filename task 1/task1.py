@@ -1,18 +1,12 @@
 import cv2
 import numpy as np
 
-
-
-"""
-
-Write a program to read a live video stream using VideoCapture and convert each frame to grayscale. 
-
-Bonus: If the stream encounters a corrupted frame, skip it and continue processing the next frames. However, if the total number of corrupted frames exceeds a specific threshold (e.g., 5 frames), break out of the loop completely and terminate the program."
-
-"""
+# Read from the default webcam. Change this index if the desired camera is
+# connected under a different device number.
 cap = cv2.VideoCapture(0)
 
-# Initialize tracking variables for corrupted frames
+# Stop after repeated failed reads so a disconnected camera cannot leave the
+# preview loop running forever.
 corrupted_count = 0
 MAX_CORRUPTED_FRAMES = 5
 
@@ -27,7 +21,7 @@ while True:
         f" {corrupted_count}/{MAX_CORRUPTED_FRAMES}"
     )
 
-    # Check if threshold is exceeded
+    # Allow up to five failed reads; the sixth ends the program.
     if corrupted_count > MAX_CORRUPTED_FRAMES:
       print("Error: Too many corrupted frames. Terminating program.")
       break
@@ -38,7 +32,7 @@ while True:
   # 1. Convert to grayscale
   gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-  # 2. Convert grayscale back to 3-channel BGR to match shape
+  # Convert grayscale back to three channels so both images have equal shapes.
   gray_3channel = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
   # 3. Combine both images side-by-side
@@ -52,6 +46,6 @@ while True:
     print("User exited manually.")
     break
 
-# Clean up resources
+# Release the webcam and close any OpenCV windows.
 cap.release()
 cv2.destroyAllWindows()

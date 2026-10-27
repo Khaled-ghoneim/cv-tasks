@@ -1,2 +1,3 @@
-task2/yolov8n-face.pt
-task2/yolov8n-pose.pt
+.venv/
+__pycache__/
+*.py[cod]

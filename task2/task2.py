@@ -1,18 +1,13 @@
-import cv2 
-import matplotlib.pyplot as plt
-import numpy as np
+from pathlib import Path
 
-"""
-Write a program to read a live video stream using VideoCapture and implement real-time Face Detection and Eye Detection using Haar Cascades.
-Your script must process the video frame-by-frame, detect the face region,
-and locate the eyes inside that specific face region using OpenCV's built-in classifiers.
+import cv2
 
-Bonus:
-
-     Search for and implement a modern, advanced face and eye detection model that performs better than Haar Cascades.
-"""
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+# Resolve cascade files relative to this script so it works from any directory.
+SCRIPT_DIR = Path(__file__).resolve().parent
+face_cascade = cv2.CascadeClassifier(
+    str(SCRIPT_DIR / "haarcascade_frontalface_default.xml")
+)
+eye_cascade = cv2.CascadeClassifier(str(SCRIPT_DIR / "haarcascade_eye.xml"))
 
 # Safety check to ensure classifiers loaded successfully
 if face_cascade.empty() or eye_cascade.empty():
@@ -30,31 +25,27 @@ while True:
         print("Failed to read video frame")
         break
 
-    
-  
-    imgg = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-
-    faces = face_cascade.detectMultiScale(imgg)
+    # Haar classifiers process grayscale frames.
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray)
 
     for (x, y, w, h) in faces:
         cv2.rectangle(frame, (x, y), (x + w, y + h),
                       (0, 255, 0), 2)
 
-        
-        roi_gray = imgg[y:y+h, x:x+w] # Crop face region from grayscale image (for eye detection)
+        # Search for eyes only inside this face's grayscale crop.
+        roi_gray = gray[y:y + h, x:x + w]
         roi_color = frame[y:y + h, x:x + w]
         eyes = eye_cascade.detectMultiScale(roi_gray)
-       
-
         for (ex, ey, ew, eh) in eyes:
-                cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (255, 255, 0), 3)
+            # Eye coordinates are relative to the face crop, so draw on it.
+            cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (255, 255, 0), 3)
 
-   
     cv2.imshow("Face and Eye Detection - Haar Cascade", frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
+# Release the camera and close the preview window.
 cap.release()
 cv2.destroyAllWindows()
